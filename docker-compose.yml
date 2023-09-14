@@ -1,0 +1,62 @@
+version: "3.8"
+services:
+  # Application
+  app:
+    build:
+      context: ./docker/services/app
+      dockerfile: app.dockerfile
+    working_dir: /var/www
+    volumes:
+      - ${APP_CODE_PATH_HOST}:/var/www
+      # - ./docker/services/app/php8.1.ini:/usr/local/etc/php/conf.d/php8.1.ini
+  # Web Server
+  nginx:
+    build:
+      context: ./docker/services/nginx
+      dockerfile: nginx.dockerfile
+    working_dir: /var/www
+    volumes:
+      - ${APP_CODE_PATH_HOST}:/var/www
+    ports:
+      - "80:80"
+  # Database
+  database:
+    platform: linux/x86_64
+    image: mysql:5.7
+    container_name: database
+    restart: always
+    volumes:
+      - ./docker/volumes/mysql:/var/lib/mysql
+    environment:
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    ports:
+      - "3306:3306"
+  #phpmyadmin
+  phpmyadmin:
+    build: ./docker/services/phpmyadmin
+    environment:
+      PMA_ARBITRARY: 1
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      UPLOAD_LIMIT: 100000M
+    ports:
+      - "8888:80"
+    depends_on:
+      - "database"
+  # Caching
+  redis:
+    image: redis:alpine
+    volumes:
+      - ./docker/volumes/redis:/data
+    ports:
+      - "6379:6379"
+  laravel_echo_server:
+    build:
+      context: ./docker/services/laravel_echo_server
+      dockerfile: Dockerfile
+    volumes:
+      - .env:/var/www/laravel_echo_server/.env
+    restart: unless-stopped
